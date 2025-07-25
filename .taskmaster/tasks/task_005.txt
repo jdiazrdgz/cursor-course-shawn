@@ -1,0 +1,132 @@
+# Task ID: 5
+# Title: Implement Chat Layout and Mode Toggle
+# Status: pending
+# Dependencies: 4
+# Priority: high
+# Description: Create the main chat layout with header, sidebar, and toggle between text and image generation modes.
+# Details:
+1. Create mode toggle component in components/mode-toggle.tsx:
+```typescript
+import { Button } from '@/components/ui/button';
+import { MessageSquare, Image as ImageIcon } from 'lucide-react';
+
+interface ModeToggleProps {
+  isImageMode: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}
+
+export function ModeToggle({ isImageMode, onToggle, disabled }: ModeToggleProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">Mode:</span>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={onToggle} 
+        disabled={disabled}
+        className="flex items-center gap-2"
+      >
+        {isImageMode ? (
+          <>
+            <ImageIcon className="h-4 w-4" />
+            <span>Image</span>
+          </>
+        ) : (
+          <>
+            <MessageSquare className="h-4 w-4" />
+            <span>Text</span>
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+```
+2. Create new chat button in components/new-chat-button.tsx:
+```typescript
+import { Button } from '@/components/ui/button';
+import { PlusCircle } from 'lucide-react';
+
+interface NewChatButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export function NewChatButton({ onClick, disabled }: NewChatButtonProps) {
+  return (
+    <Button 
+      variant="outline" 
+      onClick={onClick} 
+      disabled={disabled}
+      className="flex w-full items-center gap-2"
+    >
+      <PlusCircle className="h-4 w-4" />
+      <span>New Chat</span>
+    </Button>
+  );
+}
+```
+3. Create main chat layout in app/page.tsx:
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { ChatContainer } from '@/components/chat-container';
+import { ChatInput } from '@/components/chat-input';
+import { ModeToggle } from '@/components/mode-toggle';
+import { NewChatButton } from '@/components/new-chat-button';
+import { Message } from '@/types/database';
+
+export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isImageMode, setIsImageMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSendMessage = async (content: string) => {
+    // Will be implemented in later tasks
+    console.log('Sending message:', content, 'Mode:', isImageMode ? 'image' : 'text');
+  };
+
+  const handleNewChat = () => {
+    // Will be implemented in later tasks
+    setMessages([]);
+  };
+
+  return (
+    <div className="flex h-screen flex-col">
+      <header className="border-b p-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <h1 className="text-xl font-bold">AI Chatbot</h1>
+          <ModeToggle 
+            isImageMode={isImageMode} 
+            onToggle={() => setIsImageMode(!isImageMode)} 
+            disabled={isLoading} 
+          />
+        </div>
+      </header>
+      <main className="flex flex-1 overflow-hidden">
+        <div className="hidden w-64 border-r p-4 md:block">
+          <NewChatButton onClick={handleNewChat} disabled={isLoading} />
+          {/* Chat history will be added in future tasks */}
+        </div>
+        <div className="flex flex-1 flex-col">
+          <ChatContainer messages={messages} isLoading={isLoading} />
+          <div className="border-t p-4">
+            <div className="mx-auto max-w-3xl">
+              <ChatInput 
+                onSendMessage={handleSendMessage} 
+                isImageMode={isImageMode} 
+                disabled={isLoading} 
+              />
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+```
+
+# Test Strategy:
+Test the layout by verifying that all components render correctly and are positioned properly. Check that the mode toggle correctly switches between text and image modes. Verify that the new chat button clears the current conversation. Test responsive behavior on different screen sizes, especially the sidebar hiding on mobile.

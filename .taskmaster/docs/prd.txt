@@ -1,0 +1,245 @@
+# GPT-Powered Chatbot with Image Generation - Product Requirements Document
+
+## Overview
+A modern, responsive web application that provides users with AI-powered conversational capabilities and image generation features. The application allows users to engage in natural language conversations with GPT-4.1-nano and generate images using OpenAI's gpt-image-1 model. Built with Next.js and Supabase, this chatbot offers a clean, ChatGPT-like interface for seamless AI interactions.
+
+**Problem**: Users need an accessible, modern interface to interact with OpenAI's latest models for both text generation and image creation in a single, unified experience.
+
+**Solution**: A web-based chatbot that combines conversational AI with image generation capabilities, featuring real-time streaming responses and an intuitive toggle between modes.
+
+**Target Users**: Anyone seeking to interact with large language models or generate AI images, including developers, content creators, students, and general users interested in AI capabilities.
+
+## Core Features
+
+### 1. Text Chat Interface
+- **What it does**: Provides a conversational interface for text-based interactions with GPT-4.1-nano-2025-04-14
+- **Why it's important**: Core functionality that enables natural language conversations with AI
+- **How it works**: Users type messages, receive streaming responses in real-time, with message history displayed in a chat format
+
+### 2. Streaming Text Responses
+- **What it does**: Displays GPT responses as they are generated, character by character
+- **Why it's important**: Provides immediate feedback and creates a more engaging, responsive user experience
+- **How it works**: Uses OpenAI's streaming API to render responses progressively as tokens are received
+
+### 3. Image Generation Mode
+- **What it does**: Allows users to toggle to image generation mode and create images from text prompts
+- **Why it's important**: Expands functionality beyond text to visual content creation
+- **How it works**: Toggle switch changes input context, sends prompts to gpt-image-1 model, displays generated images in chat
+
+### 4. New Chat Functionality
+- **What it does**: Enables users to start fresh conversations while preserving previous chat history
+- **Why it's important**: Allows context reset and organization of different conversation topics
+- **How it works**: "New Chat" button clears current view and context while storing previous messages in database
+
+### 5. Error Handling and User Feedback
+- **What it does**: Gracefully handles API failures and provides user-friendly error messages
+- **Why it's important**: Ensures smooth user experience even when external services fail
+- **How it works**: Displays simplified error messages in chat interface while logging detailed errors to console
+
+## User Experience
+
+### User Personas
+- **Primary**: General users seeking AI assistance for various tasks (writing, brainstorming, learning)
+- **Secondary**: Content creators needing both text and image generation capabilities
+- **Tertiary**: Developers and students exploring AI model capabilities
+
+### Key User Flows
+
+**Text Chat Flow**:
+1. User opens application
+2. User types message in input field
+3. User presses enter or send button
+4. System streams response in chat interface
+5. User continues conversation or starts new chat
+
+**Image Generation Flow**:
+1. User toggles to image generation mode
+2. User enters descriptive prompt
+3. User submits request
+4. System generates and displays image in chat
+5. User can toggle back to text mode or generate more images
+
+**New Chat Flow**:
+1. User clicks "New Chat" button
+2. Current conversation is stored in database
+3. Chat interface clears to blank state
+4. User can begin fresh conversation
+
+### UI/UX Considerations
+- **Design**: Clean, modern interface inspired by ChatGPT
+- **Responsiveness**: Mobile-first design with desktop optimization
+- **Accessibility**: Keyboard navigation, screen reader support
+- **Visual Hierarchy**: Clear distinction between user messages and AI responses
+- **Loading States**: Visual indicators for streaming responses and image generation
+
+## Technical Architecture
+
+### System Components
+- **Frontend**: Next.js 14+ with App Router, React 18+, TypeScript
+- **UI Framework**: Tailwind CSS for styling, shadcn/ui for reusable components
+- **Backend**: Supabase Edge Functions for API orchestration
+- **Database**: Supabase PostgreSQL for message history storage
+- **AI Services**: OpenAI API for text generation and image creation
+
+### Data Models
+
+**Messages Table**:
+```sql
+- id (uuid, primary key)
+- chat_id (uuid, foreign key)
+- content (text)
+- role (enum: 'user', 'assistant')
+- message_type (enum: 'text', 'image')
+- image_url (text, nullable)
+- created_at (timestamp)
+```
+
+**Chats Table**:
+```sql
+- id (uuid, primary key)
+- title (text, nullable)
+- created_at (timestamp)
+- updated_at (timestamp)
+```
+
+### APIs and Integrations
+- **OpenAI Text API**: GPT-4.1-nano-2025-04-14 for conversational responses
+- **OpenAI Image API**: gpt-image-1 for image generation
+- **Supabase Edge Functions**: `/api/chat` and `/api/generate-image` endpoints
+- **Supabase Database**: Real-time message storage and retrieval
+
+### Infrastructure Requirements
+- **Development**: Local Supabase instance with Docker
+- **Frontend Hosting**: Vercel or similar (future deployment)
+- **Environment Variables**: OpenAI API keys, Supabase configuration
+- **Dependencies**: Node.js 18+, Docker for local Supabase
+
+## Development Roadmap
+
+### Phase 1: Foundation Setup
+- Project initialization with Next.js App Router
+- TypeScript configuration and strict type checking
+- Tailwind CSS and shadcn/ui component library setup
+- Supabase CLI installation and local instance configuration
+- Basic folder structure following best practices
+
+### Phase 2: Database and Backend Infrastructure
+- Supabase database schema creation (messages and chats tables)
+- Database migrations setup for local development
+- Edge Functions scaffolding for chat and image generation
+- Environment variable configuration for API keys
+- CORS and basic security headers setup
+
+### Phase 3: Core Chat Interface
+- Basic chat UI with message display area
+- Input field with send functionality
+- Message bubble components for user and AI responses
+- Real-time message rendering and state management
+- New Chat button and conversation clearing
+
+### Phase 4: OpenAI Text Integration
+- OpenAI SDK integration for text generation
+- Streaming API implementation in Edge Function
+- Real-time response rendering in frontend
+- Message storage to Supabase database
+- Error handling for API failures
+
+### Phase 5: Image Generation Feature
+- Toggle component for switching between text and image mode
+- Image generation Edge Function with gpt-image-1
+- Image display and storage in chat interface
+- UI state management for different modes
+- Image URL storage in database
+
+### Phase 6: Enhanced UX and Error Handling
+- Loading states and visual feedback
+- Comprehensive error handling with user-friendly messages
+- Advanced logging for development and debugging
+- Performance optimizations for message rendering
+- Mobile responsiveness and accessibility improvements
+
+### Future Enhancements (Post-MVP)
+- User authentication and personalized chat history
+- Chat history browsing and search functionality
+- Export conversations and images
+- Custom model parameter controls
+- Advanced image editing and manipulation
+- Conversation sharing and collaboration features
+
+## Logical Dependency Chain
+
+### Foundation First (Phase 1-2)
+- Next.js project setup must precede all development
+- TypeScript configuration enables type safety across the application
+- Supabase local setup required before any backend development
+- Database schema must exist before API endpoints can store data
+
+### Core Functionality (Phase 3-4)
+- Basic UI components needed before integrating AI features
+- Chat interface provides foundation for all user interactions
+- Text generation must work before adding image capabilities
+- Message storage enables conversation persistence
+
+### Enhanced Features (Phase 5-6)
+- Image generation builds upon existing chat infrastructure
+- Error handling improves upon working basic functionality
+- Performance optimizations require existing features to optimize
+- Mobile responsiveness enhances existing desktop experience
+
+### Quick-to-Visible Strategy
+1. **Phase 3** delivers immediate visual progress with working chat UI
+2. **Phase 4** provides core value proposition with AI text responses
+3. **Phase 5** adds differentiation with image generation
+4. **Phase 6** polishes the complete experience
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **Risk**: OpenAI API rate limiting or service outages
+- **Mitigation**: Implement exponential backoff, user-friendly error messages, and request queuing
+
+- **Risk**: Streaming response complexity in Next.js App Router
+- **Mitigation**: Use proven patterns from OpenAI documentation, implement comprehensive error boundaries
+
+- **Risk**: Supabase local development environment issues
+- **Mitigation**: Document exact setup steps, use Docker for consistency, provide troubleshooting guide
+
+### MVP Scope Management
+- **Risk**: Feature creep beyond MVP requirements
+- **Mitigation**: Strict adherence to defined MVP scope, defer authentication and advanced features
+
+- **Risk**: Complex state management for chat and image modes
+- **Mitigation**: Use React's built-in state management, avoid premature optimization
+
+### Resource Constraints
+- **Risk**: OpenAI API costs during development
+- **Mitigation**: Implement request logging, use efficient prompting, set usage alerts
+
+- **Risk**: Complex deployment and production setup
+- **Mitigation**: Focus on local development first, defer production concerns to post-MVP
+
+## Appendix
+
+### Technical Specifications
+- **Node.js**: Version 18+ required for Next.js App Router
+- **Docker**: Required for local Supabase development
+- **OpenAI Models**: gpt-4.1-nano-2025-04-14 (text), gpt-image-1 (images)
+- **Database**: PostgreSQL via Supabase with real-time capabilities
+
+### Security Considerations (Post-MVP)
+- API key protection and rotation
+- Rate limiting and abuse prevention
+- Content filtering and moderation
+- Data privacy and retention policies
+
+### Performance Targets
+- **Response Time**: Text streaming initiation < 500ms
+- **Image Generation**: < 10 seconds for standard requests
+- **UI Responsiveness**: No blocking operations on main thread
+- **Mobile Performance**: Optimized for modern mobile browsers
+
+### Development Tools
+- **Code Quality**: ESLint, Prettier, TypeScript strict mode
+- **Database**: Supabase CLI, SQL migrations
+- **API Testing**: Manual testing with local Edge Functions
+- **Version Control**: Git with conventional commit messages 

@@ -1,0 +1,188 @@
+# Task ID: 10
+# Title: Implement Chat History and New Chat Functionality
+# Status: pending
+# Dependencies: 7
+# Priority: medium
+# Description: Implement the ability to view chat history, start new conversations, and switch between existing chats.
+# Details:
+1. Create chat history service in lib/chat-history-service.ts:
+```typescript
+import { supabase } from '@/lib/supabase';
+import { Chat } from '@/types/database';
+
+export async function fetchChatHistory(): Promise<Chat[]> {
+  const { data, error } = await supabase
+    .from('chats')
+    .select('*')
+    .order('updated_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching chat history:', error);
+    throw new Error('Failed to fetch chat history');
+  }
+  
+  return data;
+}
+
+export async function createNewChat(): Promise<Chat> {
+  const { data, error } = await supabase
+    .from('chats')
+    .insert({})
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Error creating new chat:', error);
+    throw new Error('Failed to create new chat');
+  }
+  
+  return data;
+}
+
+export async function updateChatTitle(chatId: string, title: string): Promise<void> {
+  const { error } = await supabase
+    .from('chats')
+    .update({ title, updated_at: new Date().toISOString() })
+    .eq('id', chatId);
+    
+  if (error) {
+    console.error('Error updating chat title:', error);
+    throw new Error('Failed to update chat title');
+  }
+}
+```
+2. Create chat history component in components/chat-history.tsx:
+```typescript
+import { Chat } from '@/types/database';
+import { Button } from '@/components/ui/button';
+import { MessageSquare } from 'lucide-react';
+
+interface ChatHistoryProps {
+  chats: Chat[];
+  currentChatId: string | null;
+  onSelectChat: (chatId: string) => void;
+}
+
+export function ChatHistory({ chats, currentChatId, onSelectChat }: ChatHistoryProps) {
+  return (
+    <div className="mt-4 space-y-2">
+      <h2 className="text-sm font-medium text-muted-foreground">Chat History</h2>
+      {chats.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No previous chats</p>
+      ) : (
+        <ul className="space-y-1">
+          {chats.map(chat => (
+            <li key={chat.id}>
+              <Button
+                variant={chat.id === currentChatId ? 'secondary' : 'ghost'}
+                className="w-full justify-start truncate text-left"
+                onClick={() => onSelectChat(chat.id)}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                <span className="truncate">
+                  {chat.title || 'New Chat'}
+                </span>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+3. Update app/page.tsx to include chat history:
+```typescript
+// Add to existing imports
+import { ChatHistory } from '@/components/chat-history';
+import { fetchChatHistory, createNewChat } from '@/lib/chat-history-service';
+
+// Add state for chat history
+const [chats, setChats] = useState<Chat[]>([]);
+
+// Add useEffect to fetch chat history
+useEffect(() => {
+  const loadChatHistory = async () => {
+    try {
+      const history = await fetchChatHistory();
+      setChats(history);
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load chat history',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  loadChatHistory();
+}, [toast]);
+
+// Update handleNewChat function
+const handleNewChat = async () => {
+  try {
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setMessages([]);
+    setCurrentChatId(null);
+    setIsLoading(false);
+    
+    // Create a new chat in the database
+    const newChat = await createNewChat();
+    setCurrentChatId(newChat.id);
+    
+    // Update chat history
+    setChats(prev => [newChat, ...prev]);
+  } catch (error) {
+    console.error('Error creating new chat:', error);
+    toast({
+      title: 'Error',
+      description: 'Failed to create new chat',
+      variant: 'destructive',
+    });
+  }
+};
+
+// Add function to handle chat selection
+const handleSelectChat = async (chatId: string) => {
+  try {
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setIsLoading(true);
+    setCurrentChatId(chatId);
+    
+    // Fetch messages for the selected chat
+    const chatMessages = await fetchChatMessages(chatId);
+    setMessages(chatMessages);
+  } catch (error) {
+    console.error('Error selecting chat:', error);
+    toast({
+      title: 'Error',
+      description: 'Failed to load chat messages',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Update sidebar in the JSX
+<div className="hidden w-64 border-r p-4 md:block">
+  <NewChatButton onClick={handleNewChat} disabled={isLoading} />
+  <ChatHistory 
+    chats={chats} 
+    currentChatId={currentChatId} 
+    onSelectChat={handleSelectChat} 
+  />
+</div>
+```
+
+# Test Strategy:
+Test chat history functionality by creating multiple chats and verifying that they appear in the sidebar. Check that selecting a chat loads its messages correctly. Test the new chat button to ensure it creates a new conversation. Verify that chat titles are displayed correctly and that the current chat is highlighted.

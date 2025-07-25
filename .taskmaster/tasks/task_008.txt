@@ -1,0 +1,84 @@
+# Task ID: 8
+# Title: Implement OpenAI API Integration for Image Generation
+# Status: pending
+# Dependencies: 6
+# Priority: medium
+# Description: Create the backend Edge Function for image generation using OpenAI's gpt-image-1 model.
+# Details:
+1. Create Edge Function for image generation in app/api/generate-image/route.ts:
+```typescript
+import { openai } from '@/lib/openai';
+import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'edge';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { prompt, chatId } = await req.json();
+    
+    // Validate request
+    if (!prompt || typeof prompt !== 'string') {
+      return NextResponse.json({ error: 'Invalid prompt' }, { status: 400 });
+    }
+    
+    if (!chatId) {
+      return NextResponse.json({ error: 'Chat ID is required' }, { status: 400 });
+    }
+    
+    // Store user message
+    const { error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: chatId,
+        content: prompt,
+        role: 'user',
+        message_type: 'image'
+      });
+      
+    if (messageError) {
+      console.error('Error storing user message:', messageError);
+    }
+    
+    // Generate image
+    const response = await openai.images.generate({
+      model: 'gpt-image-1',
+      prompt,
+      n: 1,
+      size: '1024x1024',
+    });
+    
+    const imageUrl = response.data[0]?.url;
+    
+    if (!imageUrl) {
+      throw new Error('No image generated');
+    }
+    
+    // Store assistant message with image
+    const { error: assistantMessageError } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: chatId,
+        content: `Image generated from prompt: "${prompt}"`,
+        role: 'assistant',
+        message_type: 'image',
+        image_url: imageUrl
+      });
+      
+    if (assistantMessageError) {
+      console.error('Error storing assistant message:', assistantMessageError);
+    }
+    
+    return NextResponse.json({ imageUrl });
+  } catch (error) {
+    console.error('Image generation API error:', error);
+    return NextResponse.json(
+      { error: 'An error occurred while generating the image' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+# Test Strategy:
+Test the image generation endpoint by sending sample prompts and verifying that images are generated correctly. Check that messages are properly stored in the database with the correct message_type. Test error handling by simulating API failures and invalid inputs.

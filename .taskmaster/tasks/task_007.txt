@@ -1,0 +1,193 @@
+# Task ID: 7
+# Title: Implement Frontend Chat Logic with Streaming
+# Status: pending
+# Dependencies: 5, 6
+# Priority: high
+# Description: Connect the frontend chat UI to the backend API, implementing real-time streaming of responses and message state management.
+# Details:
+1. Create chat service in lib/chat-service.ts:
+```typescript
+import { Message } from '@/types/database';
+
+export async function sendChatMessage(content: string, chatId?: string): Promise<{
+  chatId: string;
+  responseStream: ReadableStream;
+}> {
+  const messages = [
+    { role: 'user', content }
+  ];
+  
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messages,
+      chatId,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to send message');
+  }
+  
+  const chatIdFromHeader = response.headers.get('X-Chat-Id');
+  
+  if (!chatIdFromHeader) {
+    throw new Error('No chat ID returned from server');
+  }
+  
+  return {
+    chatId: chatIdFromHeader,
+    responseStream: response.body!,
+  };
+}
+
+export async function fetchChatMessages(chatId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: true });
+    
+  if (error) {
+    console.error('Error fetching messages:', error);
+    throw new Error('Failed to fetch messages');
+  }
+  
+  return data;
+}
+```
+2. Update app/page.tsx to use the chat service:
+```typescript
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { ChatContainer } from '@/components/chat-container';
+import { ChatInput } from '@/components/chat-input';
+import { ModeToggle } from '@/components/mode-toggle';
+import { NewChatButton } from '@/components/new-chat-button';
+import { Message } from '@/types/database';
+import { sendChatMessage, fetchChatMessages } from '@/lib/chat-service';
+import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '@/components/ui/use-toast';
+
+export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isImageMode, setIsImageMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleSendMessage = async (content: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Add user message to UI immediately
+      const userMessage: Message = {
+        id: uuidv4(),
+        chat_id: currentChatId || '',
+        content,
+        role: 'user',
+        message_type: 'text',
+        image_url: null,
+        created_at: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      
+      if (isImageMode) {
+        // Image generation will be implemented in a later task
+        return;
+      }
+      
+      // Create abort controller for the stream
+      abortControllerRef.current = new AbortController();
+      
+      // Send message to API
+      const { chatId, responseStream } = await sendChatMessage(content, currentChatId || undefined);
+      
+      if (!currentChatId) {
+        setCurrentChatId(chatId);
+      }
+      
+      // Create placeholder for streaming response
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        chat_id: chatId,
+        content: '',
+        role: 'assistant',
+        message_type: 'text',
+        image_url: null,
+        created_at: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Process the stream
+      const reader = responseStream.getReader();
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+        
+        const text = decoder.decode(value);
+        
+        // Update the assistant message with new content
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: updated[lastIndex].content + text,
+          };
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to send message',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleNewChat = () => {
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setMessages([]);
+    setCurrentChatId(null);
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="flex h-screen flex-col">
+      {/* Header and layout code from previous task */}
+      {/* ... */}
+    </div>
+  );
+}
+```
+3. Install uuid for generating temporary IDs:
+```bash
+npm install uuid
+npm install --save-dev @types/uuid
+```
+
+# Test Strategy:
+Test the chat functionality by sending messages and verifying that responses stream in real-time. Check that the UI updates correctly as new tokens arrive. Test error handling by simulating network failures. Verify that the new chat button correctly resets the conversation state.

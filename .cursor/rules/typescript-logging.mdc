@@ -1,0 +1,323 @@
+---
+globs: *.ts,*.tsx
+description: Advanced logging patterns for TypeScript development and production environments
+---
+
+# TypeScript Advanced Logging
+
+## Environment-Based Logging
+- **Development**: Show logs, warnings, and errors
+- **Production**: Show only errors
+- **Test**: Minimal logging for test clarity
+
+## ✅ Required Logging Patterns
+
+### Environment-Aware Logger
+```typescript
+// ✅ DO: Create environment-aware logger utility
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+interface LoggerConfig {
+  level: LogLevel;
+  enableConsole: boolean;
+  enableFile?: boolean;
+  production: boolean;
+}
+
+class Logger {
+  private config: LoggerConfig;
+
+  constructor(config: LoggerConfig) {
+    this.config = config;
+  }
+
+  private shouldLog(level: LogLevel): boolean {
+    const levels: Record<LogLevel, number> = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3
+    };
+
+    return levels[level] >= levels[this.config.level];
+  }
+
+  private formatMessage(level: LogLevel, message: string, meta?: unknown): string {
+    const timestamp = new Date().toISOString();
+    const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+    return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaStr}`;
+  }
+
+  debug(message: string, meta?: unknown): void {
+    if (this.shouldLog('debug') && !this.config.production) {
+      console.debug(this.formatMessage('debug', message, meta));
+    }
+  }
+
+  info(message: string, meta?: unknown): void {
+    if (this.shouldLog('info') && !this.config.production) {
+      console.info(this.formatMessage('info', message, meta));
+    }
+  }
+
+  warn(message: string, meta?: unknown): void {
+    if (this.shouldLog('warn') && !this.config.production) {
+      console.warn(this.formatMessage('warn', message, meta));
+    }
+  }
+
+  error(message: string, error?: Error | unknown, meta?: unknown): void {
+    if (this.shouldLog('error')) {
+      const errorMeta = error instanceof Error 
+        ? { message: error.message, stack: error.stack, ...meta }
+        : { error, ...meta };
+      
+      console.error(this.formatMessage('error', message, errorMeta));
+    }
+  }
+}
+
+// ✅ DO: Create logger instance based on environment
+const createLogger = (): Logger => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  return new Logger({
+    level: isProduction ? 'error' : isDevelopment ? 'debug' : 'warn',
+    enableConsole: true,
+    production: isProduction
+  });
+};
+
+export const logger = createLogger();
+```
+
+### Contextual Logging
+```typescript
+// ✅ DO: Add context to logs for better debugging
+interface LogContext {
+  userId?: string;
+  requestId?: string;
+  operation?: string;
+  component?: string;
+}
+
+class ContextualLogger extends Logger {
+  constructor(
+    config: LoggerConfig,
+    private context: LogContext = {}
+  ) {
+    super(config);
+  }
+
+  withContext(context: Partial<LogContext>): ContextualLogger {
+    return new ContextualLogger(this.config, { ...this.context, ...context });
+  }
+
+  protected formatMessage(level: LogLevel, message: string, meta?: unknown): string {
+    const contextStr = Object.keys(this.context).length > 0 
+      ? ` [${Object.entries(this.context).map(([k, v]) => `${k}:${v}`).join(',')}]`
+      : '';
+    
+    return super.formatMessage(level, `${message}${contextStr}`, meta);
+  }
+}
+
+// Usage examples
+const apiLogger = logger.withContext({ component: 'api' });
+const userLogger = apiLogger.withContext({ userId: '123', operation: 'login' });
+```
+
+### Performance Logging
+```typescript
+// ✅ DO: Create performance measurement utilities
+class PerformanceLogger {
+  private timers = new Map<string, number>();
+
+  startTimer(name: string): void {
+    this.timers.set(name, performance.now());
+    logger.debug(`Performance timer started: ${name}`);
+  }
+
+  endTimer(name: string): number {
+    const startTime = this.timers.get(name);
+    if (!startTime) {
+      logger.warn(`Performance timer '${name}' was not started`);
+      return 0;
+    }
+
+    const duration = performance.now() - startTime;
+    this.timers.delete(name);
+    
+    logger.info(`Performance timer completed: ${name}`, { duration: `${duration.toFixed(2)}ms` });
+    return duration;
+  }
+
+  async measureAsync<T>(name: string, operation: () => Promise<T>): Promise<T> {
+    this.startTimer(name);
+    try {
+      const result = await operation();
+      this.endTimer(name);
+      return result;
+    } catch (error) {
+      this.endTimer(name);
+      logger.error(`Performance measurement failed for ${name}`, error);
+      throw error;
+    }
+  }
+}
+
+export const performanceLogger = new PerformanceLogger();
+```
+
+## Error Logging Patterns
+
+### Structured Error Logging
+```typescript
+// ✅ DO: Create structured error interfaces
+interface ApplicationError {
+  code: string;
+  message: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  context?: Record<string, unknown>;
+  originalError?: Error;
+}
+
+class ErrorLogger {
+  static logError(error: ApplicationError): void {
+    const logData = {
+      errorCode: error.code,
+      severity: error.severity,
+      context: error.context,
+      stack: error.originalError?.stack
+    };
+
+    switch (error.severity) {
+      case 'critical':
+      case 'high':
+        logger.error(error.message, error.originalError, logData);
+        break;
+      case 'medium':
+        logger.warn(error.message, logData);
+        break;
+      case 'low':
+        logger.info(error.message, logData);
+        break;
+    }
+  }
+
+  static createError(
+    code: string,
+    message: string,
+    severity: ApplicationError['severity'] = 'medium',
+    context?: Record<string, unknown>,
+    originalError?: Error
+  ): ApplicationError {
+    const appError: ApplicationError = {
+      code,
+      message,
+      severity,
+      context,
+      originalError
+    };
+
+    this.logError(appError);
+    return appError;
+  }
+}
+```
+
+### API Request/Response Logging
+```typescript
+// ✅ DO: Log API requests and responses appropriately
+interface ApiLogData {
+  method: string;
+  url: string;
+  statusCode?: number;
+  duration?: number;
+  userId?: string;
+  requestId?: string;
+}
+
+class ApiLogger {
+  static logRequest(data: Omit<ApiLogData, 'statusCode' | 'duration'>): void {
+    logger.info('API Request', {
+      method: data.method,
+      url: data.url,
+      userId: data.userId,
+      requestId: data.requestId
+    });
+  }
+
+  static logResponse(data: ApiLogData): void {
+    const logData = {
+      method: data.method,
+      url: data.url,
+      statusCode: data.statusCode,
+      duration: data.duration ? `${data.duration}ms` : undefined,
+      userId: data.userId,
+      requestId: data.requestId
+    };
+
+    if (data.statusCode && data.statusCode >= 400) {
+      logger.error('API Response Error', undefined, logData);
+    } else {
+      logger.info('API Response', logData);
+    }
+  }
+}
+```
+
+## Logging Configuration
+
+### Environment Variables
+```typescript
+// ✅ DO: Configure logging through environment variables
+interface LoggingConfig {
+  level: LogLevel;
+  enableConsole: boolean;
+  enableFile: boolean;
+  logFilePath?: string;
+  maxFileSize?: number;
+  maxFiles?: number;
+}
+
+function getLoggingConfig(): LoggingConfig {
+  return {
+    level: (process.env.LOG_LEVEL as LogLevel) || 'info',
+    enableConsole: process.env.ENABLE_CONSOLE_LOGGING !== 'false',
+    enableFile: process.env.ENABLE_FILE_LOGGING === 'true',
+    logFilePath: process.env.LOG_FILE_PATH || './logs/app.log',
+    maxFileSize: parseInt(process.env.LOG_MAX_FILE_SIZE || '10485760'), // 10MB
+    maxFiles: parseInt(process.env.LOG_MAX_FILES || '5')
+  };
+}
+```
+
+## ❌ Prohibited Patterns
+
+### Don't Use console.log Directly
+```typescript
+// ❌ DON'T: Use console.log directly in application code
+console.log('User logged in', userId);
+
+// ✅ DO: Use structured logger
+logger.info('User logged in', { userId, timestamp: new Date().toISOString() });
+```
+
+### Don't Log Sensitive Information
+```typescript
+// ❌ DON'T: Log passwords or sensitive data
+logger.info('User login attempt', { 
+  username, 
+  password, // Never log passwords!
+  creditCard // Never log sensitive data!
+});
+
+// ✅ DO: Log safe, non-sensitive information
+logger.info('User login attempt', { 
+  username, 
+  loginAttempt: true,
+  userAgent: req.headers['user-agent']
+});
+```

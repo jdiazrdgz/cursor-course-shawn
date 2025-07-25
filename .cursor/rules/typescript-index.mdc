@@ -1,0 +1,91 @@
+---
+alwaysApply: true
+---
+# TypeScript Development Guidelines
+
+This project follows strict TypeScript guidelines to ensure code quality, maintainability, and developer productivity. Reference the specific rule files for detailed examples.
+
+## 📚 Rule Files Reference
+
+### [typescript-fundamentals.mdc](mdc:.cursor/rules/typescript-fundamentals.mdc)
+- **Never use `any`** - Use specific types or `unknown`
+- **Explicit return types** - Always specify function return types
+- **Type guards** - Use type guards instead of type assertions
+- **Strict null checks** - Handle null/undefined explicitly
+
+### [typescript-style.mdc](mdc:.cursor/rules/typescript-style.mdc)
+- **Naming conventions** - PascalCase, camelCase, UPPER_SNAKE_CASE
+- **Use `const` by default** - Only use `let` when reassignment needed
+- **Named exports** - Prefer named exports over default exports
+- **Import organization** - Group imports logically
+
+### [typescript-interfaces.mdc](mdc:.cursor/rules/typescript-interfaces.mdc)
+- **`interface` vs `type`** - Interface for objects, type for unions
+- **Discriminated unions** - For safe state management
+- **Immutability** - Use `Readonly` and utility types
+- **Generic constraints** - Constrain generics appropriately
+
+### [typescript-patterns.mdc](mdc:.cursor/rules/typescript-patterns.mdc)
+- **Type guards** - Prefer over type assertions
+- **Error handling** - Result pattern and custom error types
+- **Async patterns** - Proper Promise typing
+- **Utility types** - Domain-specific helpers
+
+### [typescript-logging.mdc](mdc:.cursor/rules/typescript-logging.mdc)
+- **Environment-aware logging** - Different levels for dev/prod
+- **Structured logging** - Contextual and performance logging
+- **Error logging** - Structured error interfaces
+- **Security** - Never log sensitive information
+
+## 🚀 Quick Start Checklist
+
+When writing TypeScript code, ensure you:
+
+- [ ] **No `any` types** - Use specific types or `unknown`
+- [ ] **Explicit return types** - All functions have return type annotations
+- [ ] **Named exports** - Use named exports instead of default
+- [ ] **`const` by default** - Use `let` only when reassignment needed
+- [ ] **Interface for objects** - Use `interface` for extensible object shapes
+- [ ] **Type for unions** - Use `type` for union types and primitives
+- [ ] **Type guards** - Avoid type assertions (`as`)
+- [ ] **Structured logging** - Use logger with appropriate levels
+- [ ] **Error handling** - Use Result pattern or proper error types
+- [ ] **Immutability** - Use `Readonly` for configuration objects
+
+## 🛡️ Security & Best Practices
+
+- **Never log sensitive data** (passwords, tokens, personal info)
+- **Use environment-based logging** (errors only in production)
+- **Handle null/undefined explicitly** with optional chaining
+- **Create reusable type guards** for runtime type checking
+- **Use discriminated unions** for state management
+- **Prefer composition over inheritance** in TypeScript
+
+## 🔧 Environment Configuration
+
+Configure TypeScript and logging behavior:
+
+```typescript
+// tsconfig.json - Strict settings recommended
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true
+  }
+}
+
+// Environment variables for logging
+NODE_ENV=development|production
+LOG_LEVEL=debug|info|warn|error
+ENABLE_CONSOLE_LOGGING=true|false
+```
+
+## 📖 Related Documentation
+
+- [shadcn_nextjs.mdc](mdc:.cursor/rules/shadcn_nextjs.mdc) - UI component guidelines
+- [supabase.mdc](mdc:.cursor/rules/supabase.mdc) - Database integration
+- [testing-pattern.mdc](mdc:.cursor/rules/testing-pattern.mdc) - Testing strategies
+
+Follow these guidelines consistently across the codebase to maintain high code quality and developer experience.

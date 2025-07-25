@@ -1,0 +1,150 @@
+# Task ID: 11
+# Title: Implement Comprehensive Error Handling
+# Status: pending
+# Dependencies: 7, 9
+# Priority: medium
+# Description: Implement robust error handling throughout the application, with user-friendly error messages and proper error logging.
+# Details:
+1. Create error handling utility in lib/error-handler.ts:
+```typescript
+type ErrorWithMessage = {
+  message: string;
+};
+
+function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  );
+}
+
+function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
+  if (isErrorWithMessage(maybeError)) return maybeError;
+  
+  try {
+    return new Error(JSON.stringify(maybeError));
+  } catch {
+    // fallback in case there's an error stringifying the maybeError
+    return new Error(String(maybeError));
+  }
+}
+
+export function getErrorMessage(error: unknown): string {
+  return toErrorWithMessage(error).message;
+}
+
+export function logError(error: unknown, context?: string): void {
+  const message = getErrorMessage(error);
+  console.error(`${context ? `[${context}] ` : ''}Error: ${message}`);
+  
+  // In a production app, you might want to send this to a logging service
+  // like Sentry or LogRocket
+}
+
+export function getUserFriendlyErrorMessage(error: unknown): string {
+  const message = getErrorMessage(error);
+  
+  // Map specific error messages to user-friendly versions
+  if (message.includes('OpenAI API')) {
+    return 'The AI service is currently unavailable. Please try again later.';
+  }
+  
+  if (message.includes('network')) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+  
+  if (message.includes('timeout')) {
+    return 'The request timed out. Please try again.';
+  }
+  
+  if (message.includes('rate limit')) {
+    return 'Too many requests. Please wait a moment and try again.';
+  }
+  
+  // Default message for unknown errors
+  return 'Something went wrong. Please try again later.';
+}
+```
+2. Create error boundary component in components/error-boundary.tsx:
+```typescript
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { getUserFriendlyErrorMessage, logError } from '@/lib/error-handler';
+import { useEffect, useState } from 'react';
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+export function ErrorBoundary({ children }: ErrorBoundaryProps) {
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      logError(event.error, 'Window Error');
+      setError(event.error);
+      event.preventDefault();
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      logError(event.reason, 'Unhandled Promise Rejection');
+      setError(event.reason instanceof Error ? event.reason : new Error(String(event.reason)));
+      event.preventDefault();
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-4 text-center">
+        <h2 className="mb-2 text-xl font-bold">Something went wrong</h2>
+        <p className="mb-4 text-muted-foreground">
+          {getUserFriendlyErrorMessage(error)}
+        </p>
+        <Button onClick={() => window.location.reload()}>Refresh the page</Button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+```
+3. Update app/layout.tsx to include the error boundary:
+```typescript
+import { ErrorBoundary } from '@/components/error-boundary';
+import { Toaster } from '@/components/ui/toaster';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+```
+4. Update API error handling in route handlers:
+```typescript
+// In app/api/chat/route.ts and app/api/generate-image/route.ts
+import { logError } from '@/lib/error-handler';
+
+// Replace console.error calls with logError
+logError(error, 'Chat API');
+```
+
+# Test Strategy:
+Test error handling by simulating various error conditions: network failures, API errors, and unexpected exceptions. Verify that user-friendly error messages are displayed in the UI. Check that errors are properly logged to the console. Test the error boundary by intentionally throwing errors in different parts of the application.

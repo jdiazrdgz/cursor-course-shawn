@@ -1,0 +1,91 @@
+---
+globs: *.ts,*.tsx
+description: TypeScript fundamentals and strict typing guidelines
+---
+
+# TypeScript Fundamentals & Strict Typing
+
+## Core Principles
+- **Never use `any`** - Always use specific types or `unknown`
+- **Explicit return types** - Always specify function return types
+- **Type safety first** - Prefer compile-time errors over runtime errors
+
+## ❌ Prohibited Patterns
+
+### Never Use `any`
+```typescript
+// ❌ DON'T: Loses type safety completely
+function getPrice(price: any): string {
+  return `$${price.toFixed(2)}`; // Runtime error if price is not a number
+}
+```
+
+### Avoid Implicit Returns
+```typescript
+// ❌ DON'T: Return type is inferred, may cause issues
+function createGreeting(name: string) {
+  if (name) {
+    return `Hello, ${name}`;
+  }
+  // Missing return statement - returns undefined
+}
+```
+
+## ✅ Required Patterns
+
+### Use Specific Types or `unknown`
+```typescript
+// ✅ DO: Specific type
+function getPrice(price: number): string {
+  return `$${price.toFixed(2)}`;
+}
+
+// ✅ DO: Use unknown when type is truly unknown
+function processData(data: unknown): void {
+  if (typeof data === 'string') {
+    console.log(data.toUpperCase());
+  }
+}
+```
+
+### Explicit Function Return Types
+```typescript
+// ✅ DO: Always specify return type
+function createGreeting(name: string): string {
+  if (name) {
+    return `Hello, ${name}`;
+  }
+  return "Hello, guest";
+}
+
+// ✅ DO: Even for simple functions
+function isEven(num: number): boolean {
+  return num % 2 === 0;
+}
+```
+
+### Strict Null Checks
+```typescript
+// ✅ DO: Handle null/undefined explicitly
+function getUsername(user: { name?: string }): string {
+  return user.name ?? 'Anonymous';
+}
+
+// ✅ DO: Use optional chaining
+const email = user?.profile?.email;
+```
+
+## Type Guards for Unknown Types
+```typescript
+// ✅ DO: Use type guards for runtime type checking
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function processInput(input: unknown): void {
+  if (isString(input)) {
+    // TypeScript now knows input is a string
+    console.log(input.toUpperCase());
+  }
+}
+```

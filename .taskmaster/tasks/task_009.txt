@@ -1,0 +1,119 @@
+# Task ID: 9
+# Title: Implement Frontend Image Generation Integration
+# Status: pending
+# Dependencies: 7, 8
+# Priority: medium
+# Description: Connect the frontend image generation mode to the backend API and implement the UI for displaying generated images.
+# Details:
+1. Create image generation service in lib/image-service.ts:
+```typescript
+export async function generateImage(prompt: string, chatId: string): Promise<string> {
+  const response = await fetch('/api/generate-image', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      chatId,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to generate image');
+  }
+  
+  const { imageUrl } = await response.json();
+  
+  if (!imageUrl) {
+    throw new Error('No image URL returned');
+  }
+  
+  return imageUrl;
+}
+```
+2. Update app/page.tsx to handle image generation:
+```typescript
+// Add to existing imports
+import { generateImage } from '@/lib/image-service';
+
+// Update handleSendMessage function to handle image mode
+const handleSendMessage = async (content: string) => {
+  try {
+    setIsLoading(true);
+    
+    // Add user message to UI immediately
+    const userMessage: Message = {
+      id: uuidv4(),
+      chat_id: currentChatId || '',
+      content,
+      role: 'user',
+      message_type: isImageMode ? 'image' : 'text',
+      image_url: null,
+      created_at: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Create a chat if we don't have one yet
+    if (!currentChatId) {
+      const { data: chat, error } = await supabase
+        .from('chats')
+        .insert({})
+        .select()
+        .single();
+        
+      if (error) {
+        throw new Error('Failed to create chat');
+      }
+      
+      setCurrentChatId(chat.id);
+    }
+    
+    if (isImageMode) {
+      // Handle image generation
+      const assistantMessage: Message = {
+        id: uuidv4(),
+        chat_id: currentChatId!,
+        content: `Generating image from prompt: "${content}"...`,
+        role: 'assistant',
+        message_type: 'image',
+        image_url: null,
+        created_at: new Date().toISOString(),
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      const imageUrl = await generateImage(content, currentChatId!);
+      
+      // Update the assistant message with the image URL
+      setMessages(prev => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        updated[lastIndex] = {
+          ...updated[lastIndex],
+          content: `Image generated from prompt: "${content}"`,
+          image_url: imageUrl,
+        };
+        return updated;
+      });
+    } else {
+      // Text chat logic (from previous task)
+      // ...
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    toast({
+      title: 'Error',
+      description: error instanceof Error ? error.message : 'An error occurred',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+# Test Strategy:
+Test image generation by toggling to image mode and submitting prompts. Verify that images are displayed correctly in the chat interface. Test error handling by simulating API failures. Check that the loading state is properly managed during image generation.

@@ -1,0 +1,126 @@
+---
+globs: *.ts,*.tsx
+description: TypeScript style conventions and naming guidelines
+---
+
+# TypeScript Style & Conventions
+
+## Naming Conventions
+- **PascalCase** - Types, Interfaces, Classes, Enums
+- **camelCase** - Variables, Functions, Methods
+- **UPPER_SNAKE_CASE** - Constants
+- **kebab-case** - File names
+
+## Variable Declarations
+
+### Use `const` by Default
+```typescript
+// ✅ DO: Use const for values that won't be reassigned
+const MAX_LOGIN_ATTEMPTS = 3;
+const userConfig = { theme: 'dark', language: 'en' };
+
+// ✅ DO: Use let only when reassignment is needed
+let currentAttempts = 0;
+currentAttempts++;
+```
+
+### Avoid `var`
+```typescript
+// ❌ DON'T: Never use var
+var globalVariable = 'bad';
+
+// ✅ DO: Use const/let
+const scopedVariable = 'good';
+```
+
+## Naming Examples
+
+### Constants
+```typescript
+// ✅ DO: UPPER_SNAKE_CASE for constants
+const API_BASE_URL = 'https://api.example.com';
+const DEFAULT_TIMEOUT = 5000;
+const MAX_RETRY_ATTEMPTS = 3;
+```
+
+### Types and Interfaces
+```typescript
+// ✅ DO: PascalCase for types and interfaces
+interface UserProfile {
+  id: number;
+  username: string;
+  isActive: boolean;
+}
+
+type PaymentStatus = 'pending' | 'completed' | 'failed';
+type DatabaseConnection = {
+  host: string;
+  port: number;
+};
+```
+
+### Functions and Variables
+```typescript
+// ✅ DO: camelCase for functions and variables
+function getUserProfile(userId: number): UserProfile {
+  const userProfileData = fetchUserData(userId);
+  return userProfileData;
+}
+
+const isUserActive = (user: UserProfile): boolean => user.isActive;
+```
+
+## Export Conventions
+
+### Prefer Named Exports
+```typescript
+// ✅ DO: Named exports for better refactoring
+export function logMessage(message: string): void {
+  console.log(message);
+}
+
+export function formatDate(date: Date): string {
+  return date.toISOString();
+}
+
+// ✅ DO: Group exports at the bottom
+export { UserService } from './services/user';
+export { ApiClient } from './clients/api';
+```
+
+### Avoid Default Exports
+```typescript
+// ❌ DON'T: Default exports make refactoring harder
+export default function logger() { }
+
+// ✅ DO: Named exports are explicit
+export function createLogger() { }
+```
+
+## File Naming
+```typescript
+// ✅ DO: Use kebab-case for file names
+// user-service.ts
+// api-client.ts
+// payment-processor.ts
+
+// ✅ DO: Use descriptive names
+// error-handler.ts (not handler.ts)
+// user-validator.ts (not validator.ts)
+```
+
+## Import Organization
+```typescript
+// ✅ DO: Group imports logically
+// 1. Node modules
+import React from 'react';
+import { NextRequest } from 'next/server';
+
+// 2. Internal modules (absolute paths)
+import { UserService } from '@/services/user-service';
+import { ApiClient } from '@/lib/api-client';
+
+// 3. Relative imports
+import { formatDate } from '../utils/date-formatter';
+import { validateInput } from './input-validator';
+```

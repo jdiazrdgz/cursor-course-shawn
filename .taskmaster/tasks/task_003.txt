@@ -1,0 +1,65 @@
+# Task ID: 3
+# Title: Create Database Schema and Migrations
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Define and implement the database schema for messages and chats tables in Supabase as specified in the PRD.
+# Details:
+1. Create SQL migration file for the database schema:
+```sql
+-- Create chats table
+CREATE TABLE chats (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create message_type enum
+CREATE TYPE message_type AS ENUM ('text', 'image');
+
+-- Create role enum
+CREATE TYPE message_role AS ENUM ('user', 'assistant');
+
+-- Create messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+  content TEXT,
+  role message_role,
+  message_type message_type,
+  image_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes
+CREATE INDEX idx_messages_chat_id ON messages(chat_id);
+```
+2. Apply migration using Supabase CLI:
+```bash
+supabase migration new create_tables
+# Copy SQL into the created migration file
+supabase db reset
+```
+3. Create TypeScript types for database schema in types/database.ts:
+```typescript
+export type Chat = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Message = {
+  id: string;
+  chat_id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  message_type: 'text' | 'image';
+  image_url: string | null;
+  created_at: string;
+};
+```
+
+# Test Strategy:
+Verify schema creation by querying the database structure. Test foreign key constraints by attempting to create messages with non-existent chat_ids. Validate enum constraints by trying to insert invalid role or message_type values. Confirm indexes are created properly.

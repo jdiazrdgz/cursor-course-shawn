@@ -1,0 +1,68 @@
+# Task ID: 1
+# Title: Setup Next.js Project with TypeScript and Tailwind CSS
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Initialize the project with Next.js 14+ App Router, TypeScript, and Tailwind CSS. Set up shadcn/ui component library for UI elements.
+# Details:
+1. Create a new Next.js project with App Router:
+```bash
+npx create-next-app@latest chatbot-app --typescript --tailwind --eslint --app
+```
+2. Configure TypeScript with strict mode in tsconfig.json:
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
+```
+3. Install and configure shadcn/ui:
+```bash
+npx shadcn-ui@latest init
+```
+4. Set up project folder structure following Next.js App Router conventions:
+- app/ (for routes)
+- components/ (for UI components)
+- lib/ (for utilities)
+- types/ (for TypeScript types)
+- public/ (for static assets)
+5. Configure ESLint and Prettier for code quality
+
+# Test Strategy:
+Verify project setup by running the development server and confirming that the application loads without errors. Check that TypeScript compilation works and Tailwind styles are applied correctly. Test that shadcn/ui components can be imported and used.
+
+# Subtasks:
+## 1. Create Next.js Project with TypeScript and Tailwind CSS [pending]
+### Dependencies: None
+### Description: Initialize a new Next.js project with TypeScript and Tailwind CSS using the create-next-app command.
+### Details:
+Run the command: `npx create-next-app@latest chatbot-app --typescript --tailwind --eslint --app`. This will create a new Next.js project with App Router, TypeScript, Tailwind CSS, and ESLint configurations. Verify the installation by navigating to the project directory and checking that all necessary files are created.
+
+## 2. Configure TypeScript with Strict Mode [pending]
+### Dependencies: None
+### Description: Update the TypeScript configuration to enable strict mode and other recommended settings.
+### Details:
+Open the tsconfig.json file and update the compilerOptions to include strict mode, consistent casing enforcement, and other recommended settings. Ensure the configuration includes: `"strict": true`, `"forceConsistentCasingInFileNames": true`, `"esModuleInterop": true`, and `"skipLibCheck": true`.
+
+## 3. Install and Configure shadcn/ui [pending]
+### Dependencies: None
+### Description: Set up the shadcn/ui component library for consistent UI elements throughout the application.
+### Details:
+Run `npx shadcn-ui@latest init` to initialize shadcn/ui. Follow the CLI prompts to configure the library according to project needs. This will set up the necessary configuration files and dependencies for shadcn/ui components. After initialization, install a test component like Button with `npx shadcn-ui@latest add button` to verify the setup.
+
+## 4. Set Up Project Folder Structure [pending]
+### Dependencies: None
+### Description: Create the recommended folder structure following Next.js App Router conventions.
+### Details:
+Create the following directory structure: app/ (for routes), components/ (for UI components), lib/ (for utilities), types/ (for TypeScript types), and public/ (for static assets). Within the app directory, set up the initial page.tsx file. Create placeholder files in each directory to ensure they're tracked by git.
+
+## 5. Configure ESLint and Prettier [pending]
+### Dependencies: None
+### Description: Set up ESLint and Prettier for code quality and consistent formatting.
+### Details:
+Install Prettier with `npm install --save-dev prettier eslint-config-prettier`. Create a .prettierrc file with project formatting rules. Update the .eslintrc.json file to extend the Prettier configuration. Add scripts to package.json for linting and formatting: `"lint": "next lint"` and `"format": "prettier --write ."`. Create a .vscode/settings.json file to enable format-on-save.
+

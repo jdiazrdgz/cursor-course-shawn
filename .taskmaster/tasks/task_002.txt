@@ -1,0 +1,37 @@
+# Task ID: 2
+# Title: Set Up Supabase Local Development Environment
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Configure Supabase CLI and set up a local Supabase instance using Docker for development purposes.
+# Details:
+1. Install Supabase CLI:
+```bash
+npm install -g supabase
+```
+2. Initialize Supabase project:
+```bash
+supabase init
+```
+3. Start local Supabase instance with Docker:
+```bash
+supabase start
+```
+4. Create .env.local file with Supabase configuration:
+```
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-local-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-local-service-role-key>
+```
+5. Set up Supabase client in lib/supabase.ts:
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+```
+
+# Test Strategy:
+Verify Supabase setup by running a simple query to the local database. Confirm that the Supabase dashboard is accessible at http://localhost:54323. Test connection by creating a simple table and inserting data through the client.

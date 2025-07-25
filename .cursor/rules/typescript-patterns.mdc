@@ -1,0 +1,255 @@
+---
+globs: *.ts,*.tsx
+description: Advanced TypeScript patterns and best practices
+---
+
+# TypeScript Advanced Patterns
+
+## Type Guards vs Type Assertions
+
+### Prefer Type Guards over Type Assertions
+```typescript
+// ❌ DON'T: Type assertions are unsafe
+function makeSound(pet: Cat | Dog): void {
+  (pet as Cat).meow(); // Dangerous - might fail at runtime
+}
+
+// ✅ DO: Use type guards for safe type narrowing
+interface Cat {
+  meow(): void;
+  purr(): void;
+}
+
+interface Dog {
+  bark(): void;
+  fetch(): void;
+}
+
+function isCat(pet: Cat | Dog): pet is Cat {
+  return 'meow' in pet;
+}
+
+function makeSound(pet: Cat | Dog): void {
+  if (isCat(pet)) {
+    pet.meow(); // TypeScript knows pet is Cat here
+    pet.purr(); // All Cat methods available
+  } else {
+    pet.bark(); // TypeScript knows pet is Dog here
+    pet.fetch(); // All Dog methods available
+  }
+}
+```
+
+### Custom Type Guards for Complex Types
+```typescript
+// ✅ DO: Create reusable type guards
+function isValidUser(obj: unknown): obj is User {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'username' in obj &&
+    typeof (obj as any).id === 'number' &&
+    typeof (obj as any).username === 'string'
+  );
+}
+
+function processApiResponse(response: unknown): void {
+  if (isValidUser(response)) {
+    // response is now typed as User
+    console.log(`User: ${response.username}`);
+  }
+}
+```
+
+## Error Handling Patterns
+
+### Result Pattern for Error Handling
+```typescript
+// ✅ DO: Use Result pattern for explicit error handling
+type Result<T, E = Error> = 
+  | { success: true; data: T }
+  | { success: false; error: E };
+
+async function fetchUser(id: number): Promise<Result<User, string>> {
+  try {
+    const user = await userService.getById(id);
+    return { success: true, data: user };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+// ✅ DO: Handle results explicitly
+async function handleUserFetch(id: number): Promise<void> {
+  const result = await fetchUser(id);
+  
+  if (result.success) {
+    console.log(`Found user: ${result.data.username}`);
+  } else {
+    console.error(`Failed to fetch user: ${result.error}`);
+  }
+}
+```
+
+### Custom Error Types
+```typescript
+// ✅ DO: Create specific error types
+class ValidationError extends Error {
+  constructor(
+    message: string,
+    public field: string,
+    public code: string
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(resource: string, id: string | number) {
+    super(`${resource} with ID ${id} not found`);
+    this.name = 'NotFoundError';
+  }
+}
+
+// ✅ DO: Use in functions with proper typing
+function validateEmail(email: string): string {
+  if (!email.includes('@')) {
+    throw new ValidationError(
+      'Invalid email format',
+      'email',
+      'INVALID_FORMAT'
+    );
+  }
+  return email;
+}
+```
+
+## Async Patterns
+
+### Proper Promise Typing
+```typescript
+// ✅ DO: Type async functions properly
+async function fetchUserData(id: number): Promise<User> {
+  const response = await fetch(`/api/users/${id}`);
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  
+  return response.json() as Promise<User>;
+}
+
+// ✅ DO: Handle async operations with proper error boundaries
+async function safeUserFetch(id: number): Promise<User | null> {
+  try {
+    return await fetchUserData(id);
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    return null;
+  }
+}
+```
+
+### Generic Async Utilities
+```typescript
+// ✅ DO: Create reusable async utilities
+type AsyncRetryOptions = {
+  maxAttempts: number;
+  delayMs: number;
+  backoff?: boolean;
+};
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: AsyncRetryOptions
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (attempt === options.maxAttempts) {
+        break;
+      }
+      
+      const delay = options.backoff 
+        ? options.delayMs * Math.pow(2, attempt - 1)
+        : options.delayMs;
+        
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError!;
+}
+```
+
+## Utility Types and Helpers
+
+### Domain-Specific Utility Types
+```typescript
+// ✅ DO: Create domain-specific utility types
+type EntityWithTimestamps<T> = T & {
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type ApiEntity<T> = EntityWithTimestamps<T> & {
+  id: number;
+};
+
+type CreateRequest<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>;
+type UpdateRequest<T> = Partial<CreateRequest<T>>;
+
+// Usage
+interface User {
+  username: string;
+  email: string;
+  isActive: boolean;
+}
+
+type UserEntity = ApiEntity<User>;
+type CreateUserRequest = CreateRequest<User>;
+type UpdateUserRequest = UpdateRequest<User>;
+```
+
+### Type-Safe Event Handlers
+```typescript
+// ✅ DO: Create type-safe event systems
+type EventMap = {
+  userCreated: { userId: number; username: string };
+  userDeleted: { userId: number };
+  error: { message: string; code?: string };
+};
+
+type EventHandler<T> = (data: T) => void | Promise<void>;
+
+class TypeSafeEventEmitter {
+  private handlers = new Map<keyof EventMap, EventHandler<any>[]>();
+
+  on<K extends keyof EventMap>(
+    event: K,
+    handler: EventHandler<EventMap[K]>
+  ): void {
+    const eventHandlers = this.handlers.get(event) || [];
+    eventHandlers.push(handler);
+    this.handlers.set(event, eventHandlers);
+  }
+
+  emit<K extends keyof EventMap>(
+    event: K,
+    data: EventMap[K]
+  ): void {
+    const eventHandlers = this.handlers.get(event) || [];
+    eventHandlers.forEach(handler => handler(data));
+  }
+}
+```

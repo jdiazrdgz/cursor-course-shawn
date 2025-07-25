@@ -1,0 +1,134 @@
+# Task ID: 6
+# Title: Implement OpenAI API Integration for Text Generation
+# Status: pending
+# Dependencies: 3
+# Priority: high
+# Description: Set up the OpenAI API client and implement the backend Edge Function for text-based chat using GPT-4.1-nano-2025-04-14.
+# Details:
+1. Install OpenAI SDK:
+```bash
+npm install openai
+```
+2. Create OpenAI client utility in lib/openai.ts:
+```typescript
+import OpenAI from 'openai';
+
+export const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+```
+3. Create Edge Function for chat in app/api/chat/route.ts:
+```typescript
+import { openai } from '@/lib/openai';
+import { supabase } from '@/lib/supabase';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'edge';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { messages, chatId } = await req.json();
+    
+    // Validate request
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
+    }
+    
+    // Create chat if chatId is not provided
+    let currentChatId = chatId;
+    if (!currentChatId) {
+      const { data: chat, error: chatError } = await supabase
+        .from('chats')
+        .insert({})
+        .select()
+        .single();
+        
+      if (chatError) {
+        console.error('Error creating chat:', chatError);
+        return NextResponse.json({ error: 'Failed to create chat' }, { status: 500 });
+      }
+      
+      currentChatId = chat.id;
+    }
+    
+    // Store user message
+    const userMessage = messages[messages.length - 1];
+    const { error: messageError } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: currentChatId,
+        content: userMessage.content,
+        role: 'user',
+        message_type: 'text'
+      });
+      
+    if (messageError) {
+      console.error('Error storing user message:', messageError);
+    }
+    
+    // Create stream
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4.1-nano-2025-04-14',
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      stream: true,
+    });
+    
+    // Return stream to client
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+      async start(controller) {
+        let fullResponse = '';
+        
+        try {
+          for await (const chunk of stream) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            if (content) {
+              controller.enqueue(encoder.encode(content));
+              fullResponse += content;
+            }
+          }
+          
+          // Store assistant message after stream completes
+          const { error: assistantMessageError } = await supabase
+            .from('messages')
+            .insert({
+              chat_id: currentChatId,
+              content: fullResponse,
+              role: 'assistant',
+              message_type: 'text'
+            });
+            
+          if (assistantMessageError) {
+            console.error('Error storing assistant message:', assistantMessageError);
+          }
+          
+          controller.close();
+        } catch (error) {
+          console.error('Stream error:', error);
+          controller.error(error);
+        }
+      }
+    });
+    
+    return new NextResponse(readable, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'X-Chat-Id': currentChatId
+      }
+    });
+  } catch (error) {
+    console.error('Chat API error:', error);
+    return NextResponse.json(
+      { error: 'An error occurred while processing your request' },
+      { status: 500 }
+    );
+  }
+}
+```
+4. Add environment variables for OpenAI API in .env.local:
+```
+OPENAI_API_KEY=your-openai-api-key
+```
+
+# Test Strategy:
+Test the API endpoint by sending sample chat messages and verifying the streaming response. Check that messages are correctly stored in the database. Test error handling by simulating API failures. Verify that the chat ID is correctly returned in headers for new conversations.

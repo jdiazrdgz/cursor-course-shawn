@@ -1,0 +1,185 @@
+# Task ID: 12
+# Title: Implement Mobile Responsiveness and Accessibility
+# Status: pending
+# Dependencies: 5, 10
+# Priority: medium
+# Description: Enhance the application with mobile-responsive design and accessibility features to ensure a good user experience across all devices.
+# Details:
+1. Create mobile navigation component in components/mobile-nav.tsx:
+```typescript
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Menu } from 'lucide-react';
+import { useState } from 'react';
+
+interface MobileNavProps {
+  children: React.ReactNode;
+}
+
+export function MobileNav({ children }: MobileNavProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0">
+        <div className="p-4">
+          {children}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+2. Update app/page.tsx to include mobile navigation:
+```typescript
+// Add to existing imports
+import { MobileNav } from '@/components/mobile-nav';
+
+// Update header in the JSX
+<header className="border-b p-4">
+  <div className="mx-auto flex max-w-6xl items-center justify-between">
+    <div className="flex items-center gap-2">
+      <MobileNav>
+        <NewChatButton onClick={handleNewChat} disabled={isLoading} />
+        <ChatHistory 
+          chats={chats} 
+          currentChatId={currentChatId} 
+          onSelectChat={handleSelectChat} 
+        />
+      </MobileNav>
+      <h1 className="text-xl font-bold">AI Chatbot</h1>
+    </div>
+    <ModeToggle 
+      isImageMode={isImageMode} 
+      onToggle={() => setIsImageMode(!isImageMode)} 
+      disabled={isLoading} 
+    />
+  </div>
+</header>
+```
+3. Add accessibility enhancements to components/chat-input.tsx:
+```typescript
+// Update ChatInput component
+export function ChatInput({ onSendMessage, isImageMode, disabled }: ChatInputProps) {
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      onSendMessage(input);
+      setInput('');
+      // Focus back on input after sending
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  };
+
+  return (
+    <form 
+      onSubmit={handleSubmit} 
+      className="flex w-full items-end gap-2"
+      aria-label="Chat message form"
+    >
+      <Textarea
+        ref={inputRef}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder={isImageMode ? "Describe the image you want to generate..." : "Type your message..."}
+        className="min-h-[60px] flex-1 resize-none"
+        disabled={disabled}
+        aria-label={isImageMode ? "Image prompt input" : "Message input"}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
+          }
+        }}
+      />
+      <Button 
+        type="submit" 
+        disabled={disabled || !input.trim()}
+        aria-label="Send message"
+      >
+        Send
+      </Button>
+    </form>
+  );
+}
+```
+4. Add responsive styles to components/chat-container.tsx:
+```typescript
+// Update ChatContainer component
+export function ChatContainer({ messages, isLoading }: ChatContainerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  return (
+    <div 
+      ref={containerRef}
+      className="flex flex-1 flex-col gap-4 overflow-y-auto p-2 sm:p-4"
+      aria-live="polite"
+      aria-label="Chat messages"
+    >
+      {messages.length === 0 ? (
+        <div className="flex h-full flex-col items-center justify-center p-4 text-center">
+          <h2 className="text-xl font-bold">Welcome to AI Chatbot</h2>
+          <p className="mt-2 text-muted-foreground">
+            Start a conversation or generate an image using the input below.
+          </p>
+        </div>
+      ) : (
+        messages.map((message) => (
+          <div key={message.id}>
+            <MessageBubble message={message} />
+          </div>
+        ))
+      )}
+      {isLoading && (
+        <div className="flex justify-start">
+          <div className="bg-muted rounded-lg p-4">
+            <div className="flex gap-1">
+              <div className="h-2 w-2 animate-bounce rounded-full bg-current"></div>
+              <div className="h-2 w-2 animate-bounce rounded-full bg-current delay-75"></div>
+              <div className="h-2 w-2 animate-bounce rounded-full bg-current delay-150"></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+5. Add meta tags for responsive design in app/layout.tsx:
+```typescript
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="description" content="AI-powered chatbot with image generation capabilities" />
+        <title>AI Chatbot</title>
+      </head>
+      <body>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+```
+
+# Test Strategy:
+Test mobile responsiveness by viewing the application on different device sizes and verifying that the layout adapts correctly. Check that the mobile navigation works properly. Test accessibility by using keyboard navigation, screen readers, and accessibility audit tools. Verify that all interactive elements have appropriate ARIA attributes and that the application meets WCAG 2.1 AA standards.

@@ -1,0 +1,193 @@
+---
+globs: *.ts,*.tsx
+description: TypeScript interfaces, types, and immutability patterns
+---
+
+# TypeScript Interfaces & Types
+
+## When to Use `interface` vs `type`
+- **`interface`** - For object shapes that can be extended
+- **`type`** - For unions, primitives, computed types, and complex type operations
+
+## Interface Patterns
+
+### Use `interface` for Object Shapes
+```typescript
+// ✅ DO: Interface for extensible object shapes
+interface Vehicle {
+  brand: string;
+  year: number;
+  isElectric?: boolean;
+}
+
+// ✅ DO: Extend interfaces easily
+interface Car extends Vehicle {
+  doors: number;
+  transmission: 'manual' | 'automatic';
+}
+
+interface Motorcycle extends Vehicle {
+  engineSize: number;
+  hasWindshield: boolean;
+}
+```
+
+### Interface for API Contracts
+```typescript
+// ✅ DO: Define clear API interfaces
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message: string;
+  timestamp: string;
+}
+
+interface UserCreateRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+interface UserResponse {
+  id: number;
+  username: string;
+  email: string;
+  createdAt: string;
+}
+```
+
+## Type Patterns
+
+### Use `type` for Unions and Primitives
+```typescript
+// ✅ DO: Type aliases for unions
+type Status = 'pending' | 'processing' | 'completed' | 'failed';
+type ID = string | number;
+type Theme = 'light' | 'dark' | 'auto';
+
+// ✅ DO: Type for complex computed types
+type EventHandlers<T> = {
+  [K in keyof T as `on${Capitalize<string & K>}`]: (value: T[K]) => void;
+};
+
+// ✅ DO: Conditional types
+type NonNullable<T> = T extends null | undefined ? never : T;
+```
+
+### Discriminated Unions
+```typescript
+// ✅ DO: Use discriminated unions for state management
+type LoadingState = {
+  status: 'loading';
+  progress?: number;
+};
+
+type SuccessState = {
+  status: 'success';
+  data: unknown[];
+};
+
+type ErrorState = {
+  status: 'error';
+  message: string;
+  code?: number;
+};
+
+type AsyncState = LoadingState | SuccessState | ErrorState;
+
+// ✅ DO: Handle all cases with type narrowing
+function handleAsyncState(state: AsyncState): void {
+  switch (state.status) {
+    case 'loading':
+      console.log(`Loading... ${state.progress ?? 0}%`);
+      break;
+    case 'success':
+      console.log('Data loaded:', state.data);
+      break;
+    case 'error':
+      console.error(`Error ${state.code}: ${state.message}`);
+      break;
+  }
+}
+```
+
+## Immutability Patterns
+
+### Use `Readonly` for Immutable Data
+```typescript
+// ✅ DO: Readonly interfaces for configuration
+interface AppConfig {
+  readonly apiKey: string;
+  readonly baseUrl: string;
+  readonly features: ReadonlyArray<string>;
+  readonly limits: Readonly<{
+    maxUsers: number;
+    maxRequests: number;
+  }>;
+}
+
+// ✅ DO: Readonly arrays
+type ReadonlyStringArray = ReadonlyArray<string>;
+const allowedRoles: ReadonlyStringArray = ['admin', 'user', 'guest'];
+```
+
+### Utility Types for Immutability
+```typescript
+// ✅ DO: Use utility types for immutable operations
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  isActive: boolean;
+}
+
+// Create immutable partial updates
+type UserUpdate = Partial<Pick<User, 'name' | 'email'>>;
+
+// Create readonly versions
+type ReadonlyUser = Readonly<User>;
+
+// Required fields from optional
+type CreateUserRequest = Required<Pick<User, 'name' | 'email'>> & {
+  password: string;
+};
+```
+
+## Generic Constraints
+```typescript
+// ✅ DO: Use generic constraints for type safety
+interface Identifiable {
+  id: number;
+}
+
+function updateEntity<T extends Identifiable>(
+  entity: T,
+  updates: Partial<Omit<T, 'id'>>
+): T {
+  return { ...entity, ...updates };
+}
+
+// ✅ DO: Constrain generic types appropriately
+interface Repository<T extends Identifiable> {
+  findById(id: number): Promise<T | null>;
+  save(entity: Omit<T, 'id'>): Promise<T>;
+  update(id: number, updates: Partial<Omit<T, 'id'>>): Promise<T>;
+  delete(id: number): Promise<void>;
+}
+```
+
+## Index Signatures
+```typescript
+// ✅ DO: Use index signatures with caution
+interface StringDictionary {
+  [key: string]: string;
+}
+
+// ✅ DO: Prefer specific properties when possible
+interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  notifications: boolean;
+  [key: `custom_${string}`]: unknown; // Allow custom prefixed properties
+}
+```
