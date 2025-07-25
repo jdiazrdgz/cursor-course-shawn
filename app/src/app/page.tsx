@@ -1,11 +1,12 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 
 interface Message {
   id: number;
   role: "user" | "assistant";
   content: string;
   type: "text" | "image";
+  imageUrl?: string;
 }
 
 export default function ChatDemoPage() {
@@ -16,23 +17,12 @@ export default function ChatDemoPage() {
       content: "Hello! How can I assist you today?",
       type: "text",
     },
-    {
-      id: 2,
-      role: "user",
-      content: "Create an image for a garden-themed birthday party invitation",
-      type: "text",
-    },
-    {
-      id: 3,
-      role: "assistant",
-      content:
-        'Here\'s the image you requested based on: "Create an image for a garden-themed birthday party invitation".',
-      type: "text",
-    },
   ]);
 
   const [inputValue, setInputValue] = useState("");
   const [mode, setMode] = useState<"text" | "image">("text");
+  const [isLoading, setIsLoading] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const suggestedPrompts = [
     "Explain quantum computing",
@@ -41,9 +31,9 @@ export default function ChatDemoPage() {
     "Create an image of a sunset",
   ];
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now(),
@@ -55,28 +45,126 @@ export default function ChatDemoPage() {
     // Add user message
     setMessages(prev => [...prev, userMessage]);
     
-    // Clear input
+    // Clear input and set loading
     setInputValue("");
+    setIsLoading(true);
 
-    // Simulate AI response after a short delay based on mode
-    setTimeout(() => {
-      let aiResponse = "";
-      
-      if (mode === "image") {
-        aiResponse = `Imagen generada basada en: "${inputValue}". Aquí tienes tu imagen creada con IA.`;
+    try {
+      if (mode === "text") {
+        await handleTextStream(inputValue);
       } else {
-        aiResponse = `Mensaje recibido: "${inputValue}". Te ayudo con tu consulta.`;
+        await handleImageGeneration(inputValue);
       }
-      
-      const aiMessage: Message = {
+    } catch (error) {
+      console.error('Error:', error);
+      // Add error message
+      const errorMessage: Message = {
         id: Date.now() + 1,
         role: "assistant",
-        content: aiResponse,
+        content: "Sorry, I encountered an error. Please try again.",
         type: "text",
       };
-      setMessages(prev => [...prev, aiMessage]);
-    }, 1000);
-  }, [inputValue, mode]);
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [inputValue, mode, isLoading]);
+
+  const handleTextStream = async (message: string) => {
+    // Create assistant message placeholder
+    const assistantMessage: Message = {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: "",
+      type: "text",
+    };
+    
+    setMessages(prev => [...prev, assistantMessage]);
+
+    try {
+      const response = await fetch('/api/chat-text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.content) {
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === assistantMessage.id 
+                      ? { ...msg, content: msg.content + data.content }
+                      : msg
+                  )
+                );
+              }
+            } catch (e) {
+              // Ignore parsing errors for non-JSON lines
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Streaming error:', error);
+      throw error;
+    }
+  };
+
+  const handleImageGeneration = async (prompt: string) => {
+    try {
+      const response = await fetch('/api/chat-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const assistantMessage: Message = {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: `Here's the image you requested: "${prompt}"`,
+        type: "image",
+        imageUrl: data.imageUrl,
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Image generation error:', error);
+      throw error;
+    }
+  };
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
@@ -120,6 +208,16 @@ export default function ChatDemoPage() {
         </div>
         <div className="bg-white rounded-2xl px-4 py-3 max-w-xs lg:max-w-md shadow-sm">
           <p className="text-sm text-gray-900">{message.content}</p>
+          {message.imageUrl && (
+            <div className="mt-3">
+              <img 
+                src={message.imageUrl} 
+                alt={message.content}
+                className="rounded-lg max-w-full h-auto"
+                style={{ maxHeight: '300px' }}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -143,6 +241,20 @@ export default function ChatDemoPage() {
           {messages.map((message) => (
             <MessageComponent key={message.id} message={message} />
           ))}
+          {isLoading && (
+            <div className="flex mb-6">
+              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                <span className="text-white text-xs font-bold">GP</span>
+              </div>
+              <div className="bg-white rounded-2xl px-4 py-3 shadow-sm">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -172,23 +284,17 @@ export default function ChatDemoPage() {
                 <div className="relative">
                   <textarea
                     value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                    }}
-                    placeholder={mode === "text" ? "Pregunta a ChatGPT..." : "Describe la imagen que quieres crear..."}
+                    onChange={handleInputChange}
+                    placeholder={mode === "text" ? "Ask ChatGPT..." : "Describe the image you want to create..."}
                     rows={3}
                     className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none focus:outline-none text-sm pr-12 border-0"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                      }
-                    }}
+                    onKeyDown={handleKeyDown}
+                    disabled={isLoading}
                   />
                   {/* Send Button */}
                   <button
                     type="submit"
-                    disabled={!inputValue.trim()}
+                    disabled={!inputValue.trim() || isLoading}
                     className="absolute right-2 top-2 p-2 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg
@@ -257,20 +363,21 @@ export default function ChatDemoPage() {
                       <span className="text-xs">Canvas</span>
                     </button>
 
-                    {/* Imagen - Functional */}
+                    {/* Image - Functional */}
                     <button
                       type="button"
                       onClick={toggleMode}
+                      disabled={isLoading}
                       className={`flex items-center space-x-2 px-3 py-2 transition-colors rounded-lg ${
                         mode === "image" 
                           ? "bg-blue-100 text-blue-700" 
                           : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                      }`}
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                       </svg>
-                      <span className="text-xs">Imagen</span>
+                      <span className="text-xs">Image</span>
                     </button>
                   </div>
 
